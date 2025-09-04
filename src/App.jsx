@@ -1,6 +1,6 @@
 import React from "react";
-import ClaraChat from "./components/ClaraChat";
+import AhaanChat from "./components/AhaanChat";
 
 export default function App() {
-  return <ClaraChat />;
+  return <AhaanChat />;
 }

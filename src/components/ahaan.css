@@ -1,0 +1,365 @@
+:root {
+    --bg: #f6f7f9;
+    --panel: #fff;
+    --text: #0f172a;
+    --muted: #6b7280;
+
+    --chip: #eef0f3;
+
+    --assistant: #efefef;
+    --assistant-border: #e2e5e9;
+
+    --user: #e9f7ee;
+    --user-border: #cdebd6;
+
+    --border: #e5e7eb;
+    --accent: #1d6aff;
+}
+
+* {
+    box-sizing: border-box
+}
+
+html,
+body,
+#root {
+    width: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    color: var(--text);
+    background: var(--bg);
+}
+
+/* ====== App shell ====== */
+.page {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    /* header | main | dock */
+    height: 100vh;
+    /* desktop & most mobile; feel free to switch to 100svh if needed */
+}
+
+/* Header */
+.topbar {
+    padding: 18px 24px 8px;
+    display: flex;
+    justify-content: center;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 10px
+}
+
+.titles {
+    display: flex;
+    flex-direction: column;
+    line-height: 1
+}
+
+.titles strong {
+    font-size: 13px;
+    letter-spacing: .14em
+}
+
+.titles span {
+    font-size: 12px;
+    color: var(--muted)
+}
+
+/* ====== Main ====== */
+.main {
+    min-height: 0;
+    /* allow child overflow */
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.stage {
+    width: 860px;
+    /* matches screenshot scale */
+    max-width: calc(100vw - 64px);
+    margin: 0 auto;
+}
+
+.col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%
+}
+
+/* Chat scroll area */
+.chat {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px 0 32px;
+    overscroll-behavior: contain;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.chat::-webkit-scrollbar {
+    display: none;
+}
+
+/* ====== Hero ====== */
+.hero {
+    width: 860px;
+    max-width: calc(100vw - 64px);
+    margin: 84px auto 0;
+    text-align: center;
+}
+
+.hero .sun {
+    font-size: 22px;
+    margin-bottom: 10px
+}
+
+.hero h1 {
+    margin: 0 0 16px;
+    font-size: 56px;
+    font-weight: 700;
+    letter-spacing: .01em
+}
+
+.hero p {
+    margin: 0 0 20px;
+    color: var(--muted)
+}
+
+.chips {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center
+}
+
+.chip {
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--chip);
+    border: 1px solid var(--border);
+    font-weight: 500;
+    color: #374151
+}
+
+/* ====== Messages ====== */
+.row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 18px 0
+}
+
+.left {
+    justify-content: flex-start
+}
+
+.right {
+    justify-content: flex-end
+}
+
+.avatar {
+    /* width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid var(--border) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+
+.spin {
+    animation: spin 1s linear infinite
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Assistant large card */
+.bubble {
+    max-width: 700px;
+    /* assistant can be wide */
+    padding: 16px 18px;
+    border-radius: 14px;
+    line-height: 1.6;
+    font-size: 15px;
+    border: 1px solid var(--assistant-border);
+    background: var(--assistant);
+    box-shadow: 0 2px 6px rgba(16, 24, 40, .04)
+}
+
+.bubble.assistant {
+    background: var(--assistant);
+    border-color: var(--assistant-border)
+}
+
+/* User small chip bubble aligned right near center */
+.bubble.user {
+    max-width: 260px;
+    /* small chip-like bubble */
+    padding: 10px 14px;
+    border-radius: 14px;
+    line-height: 1.45;
+    font-size: 14px;
+    background: var(--assistant);
+    border: 1px solid var(--assistant-border)
+}
+
+.user-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 6px
+}
+
+.user-name {
+    font-size: 12px;
+    color: var(--muted)
+}
+
+.user-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #ff6a00;
+    color: #fff;
+    font-size: 12px;
+    display: grid;
+    place-items: center;
+    font-weight: 700
+}
+
+.bubble p {
+    margin: 0 0 10px
+}
+
+.bubble p:last-child {
+    margin: 0
+}
+
+/* Typing dots */
+.dots {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    height: 16px
+}
+
+.dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #a3b0c2;
+    display: inline-block;
+    animation: bounce 1.4s infinite
+}
+
+.dots span:nth-child(2) {
+    animation-delay: .15s
+}
+
+.dots span:nth-child(3) {
+    animation-delay: .3s
+}
+
+@keyframes bounce {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(.6);
+        opacity: .6
+    }
+
+    40% {
+        transform: scale(1);
+        opacity: 1
+    }
+}
+
+/* ====== Bottom dock ====== */
+.bottombar {
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(4px);
+    padding: 14px 0;
+    display: flex;
+    justify-content: center
+}
+
+/* Input pill with inlined round send button */
+.composer {
+    /* position: relative; */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 16px 8px 16px;
+    /* leave room for send */
+}
+
+.composer input {
+    width: 100%;
+    border: 0;
+    outline: 0;
+    font-size: 14px;
+}
+
+.primary {
+    /* position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%); */
+    width: 30px;
+    /* height: 40px; */
+    border-radius: 50%;
+    padding: 5px;
+    border: 0;
+    background: var(--accent);
+    color: #fff;
+    /* display: grid; */
+    /* place-items: center; */
+    font-weight: 700
+}
+
+.secondary {
+    display: none
+}
+
+/* Mobile tweaks */
+@media (max-width:560px) {
+
+    .stage,
+    .hero {
+        max-width: calc(100vw - 24px)
+    }
+
+    .hero h1 {
+        font-size: 40px
+    }
+
+    .bubble {
+        max-width: 100%
+    }
+}
