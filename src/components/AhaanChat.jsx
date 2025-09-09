@@ -1,12 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import "./ahaan.css";
+import "../styles/ahaan.css";
+import AhaanLogo from "../assets/AhaanLogo";
+import Composer from "./Composer";
+import Hero from "./Hero";
+import Message from "./Message";
 
 /**
- * Ahaan Chat UI (JavaScript + Axios)
- * - Rotating Ahaan icon while waiting ("thinking")
- * - Typewriter effect for the response
- * - Stable 3-row layout: header | scrollable main | bottom dock
+ * Ahaan Chat UI (JavaScript + Axios) + Attachments via S3 Presigned URLs
+ * Flow:
+ *  1) POST /uploads/presign { files:[{name,type,size}] } -> [{ s3Key, url }]
+ *  2) PUT file -> presigned S3 url (capture ETag)
+ *  3) POST /uploads/complete { parts:[{ s3Key, etag }] } -> optional public URLs
+ *  4) POST /chat { prompt, attachments: [s3Key, ...] }
  */
 
 export default function AhaanChat() {
@@ -14,6 +20,7 @@ export default function AhaanChat() {
         { id: nanoid(), role: "assistant", content: "", done: true },
     ]);
     const [input, setInput] = useState("");
+    const [attachments, setAttachments] = useState([]); // [{ tempId, name, size, mime, previewUrl?, s3Key?, url?, progress?, uploading? }]
     const [isSending, setIsSending] = useState(false);
     const [controller, setController] = useState(null);
     const scrollerRef = useRef(null);
@@ -30,11 +37,30 @@ export default function AhaanChat() {
         }
     }, [messages.length]);
 
+    // Disable send while any file is still uploading or missing s3Key
+    const pendingUploads = attachments.some((a) => a.uploading || !a.s3Key);
+
     async function onSend() {
         const text = input.trim();
-        if (!text || isSending) return;
+        if (!text || isSending || pendingUploads) return;
 
-        const userMsg = { id: nanoid(), role: "user", content: text, done: true };
+        // Snapshot attachments for this message (for display)
+        const sentFiles = attachments.map((f) => ({
+            s3Key: f.s3Key,
+            name: f.name,
+            size: f.size,
+            mime: f.mime,
+            url: f.url || f.previewUrl, // prefer public URL; fallback to local preview
+        }));
+        const s3Keys = attachments.filter((f) => f.s3Key).map((f) => f.s3Key);
+
+        const userMsg = {
+            id: nanoid(),
+            role: "user",
+            content: text,
+            done: true,
+            attachments: sentFiles,
+        };
         const assistantMsg = {
             id: nanoid(),
             role: "assistant",
@@ -47,13 +73,18 @@ export default function AhaanChat() {
         else setMessages((m) => [...m, userMsg, assistantMsg]);
 
         setInput("");
+        setAttachments([]); // clear composer
         setIsSending(true);
 
         const ctrl = new AbortController();
         setController(ctrl);
 
         try {
-            const fullText = await callChatApi({ prompt: text, signal: ctrl.signal });
+            const fullText = await callChatApi({
+                prompt: text,
+                attachments: s3Keys, // <— backend wants array of s3Keys
+                signal: ctrl.signal,
+            });
 
             // stop spinning -> start typing
             setMessages((m) =>
@@ -130,17 +161,19 @@ export default function AhaanChat() {
                 )}
             </div>
 
-            {/* Bottom dock (always visible) */}
+            {/* Bottom dock */}
             <div className="bottombar">
                 <div className="stage">
                     <Composer
                         value={input}
                         onChange={setInput}
                         onSend={onSend}
-                        disabled={isSending}
+                        disabled={isSending || pendingUploads}
                         onKeyDown={onKeyDown}
                         onCancel={onCancel}
                         isSending={isSending}
+                        attachments={attachments}
+                        setAttachments={setAttachments}
                     />
                 </div>
             </div>
@@ -148,126 +181,48 @@ export default function AhaanChat() {
     );
 }
 
-/* ----- Hero (welcome) ----- */
-function Hero() {
-    const quick = [
-        "Save me time",
-        "Tell me what you can do",
-        "Help me plan",
-        "Research a topic",
-    ];
-    return (
-        <div className="hero">
-            <h1>Hello, Wyatt!</h1>
-            <p>How can Ahaan assist you today?</p>
-            <div className="chips">
-                {quick.map((q) => (
-                    <button className="chip" key={q}>
-                        {q}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-/* ----- Message bubble ----- */
-function Message({ msg }) {
-    const isUser = msg.role === "user";
-    return (
-        <div className={`row ${isUser ? "right" : "left"}`}>
-            {!isUser && (
-                <div
-                    className={`avatar ${msg.thinking ? "spin" : ""}`}
-                    aria-label="Ahaan"
-                >
-                    <AhaanLogo />
-                </div>
-            )}
-
-            <div
-                className={`bubble ${isUser ? "user" : "assistant"} ${msg.error ? "error" : ""
-                    }`}
-            >
-                {msg.thinking ? <TypingDots /> : <RichText text={msg.content} />}
-            </div>
-
-            {isUser && (
-                <div className="user-meta">
-                    <div className="user-name">Wyatt</div>
-                    <div className="user-badge">W</div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-/* ----- Small pieces ----- */
-function TypingDots() {
-    return (
-        <div className="dots" aria-live="polite" aria-label="Ahaan is thinking">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-    );
-}
-
-function RichText({ text }) {
-    const paragraphs = String(text || "").split(/\r?\n\r?\n/g).filter(Boolean);
-    return (
-        <div>
-            {paragraphs.map((p, i) => (
-                <p key={i}>{p}</p>
-            ))}
-        </div>
-    );
-}
-
-function Composer({
-    value,
-    onChange,
-    onSend,
-    disabled,
-    onKeyDown,
-    onCancel,
-    isSending,
-}) {
-    return (
-        <div className="composer">
-            <input
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onKeyDown={onKeyDown}
-                placeholder="Ask Ahaan anything…"
-                aria-label="Message Ahaan"
-            />
-            <button
-                className="primary"
-                onClick={onSend}
-                disabled={!value.trim() || disabled || isSending}
-                aria-label="Send"
-                title="Send"
-                style={{ opacity: isSending ? 0.6 : 1 }}
-            >
-                ▶
-            </button>
-        </div>
-    );
-}
-
-/* ----- Axios client & API call ----- */
+/* ----- Axios client & API calls ----- */
 const api = axios.create({ baseURL: "/api" });
 
-async function callChatApi({ prompt, signal }) {
+async function callChatApi({ prompt, attachments = [], signal }) {
+    // attachments = array of s3Keys
     try {
-        // const { data } = await api.post("/chat", { prompt }, { signal });
-        // return data?.choices?.[0]?.message?.content || data?.text || "";
+        // const { data } = await api.post("/chat", { prompt, attachments }, { signal });
+        // return data?.text || data?.choices?.[0]?.message?.content || "";
     } catch (e) {
-        // fall back to mock
+        // mock fallback
     }
     const data = await mockChat({ prompt });
     return data.choices[0].message.content;
+}
+
+/** Request presigned URLs for a batch of files */
+async function presignFiles(files) {
+    const payload = {
+        files: files.map((f) => ({ name: f.name, type: f.type, size: f.size })),
+    };
+    const { data } = await api.post("/uploads/presign", payload);
+    // Expect: data = [{ s3Key, url }, ...] aligned to input order
+    return data;
+}
+
+/** PUT a single file to its presigned S3 URL; return ETag string (without quotes) */
+async function putToS3(url, file, onProgress) {
+    const res = await axios.put(url, file, {
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        onUploadProgress: (evt) => {
+            if (onProgress && evt.total) onProgress((evt.loaded / evt.total) * 100);
+        },
+    });
+    const etag = (res.headers?.etag || res.headers?.ETag || "").replace(/\"/g, "");
+    return etag;
+}
+
+/** Notify backend to finalize uploaded files; returns optional [{ s3Key, url }] */
+async function completeUploads(parts) {
+    // parts: [{ s3Key, etag }]
+    const { data } = await api.post("/uploads/complete", { parts });
+    return data;
 }
 
 function mockChat({ prompt }) {
@@ -317,21 +272,9 @@ function nanoid() {
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-/* ----- Minimal Ahaan logo ----- */
-function AhaanLogo() {
-    return (
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" />
-            <g stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M12 1v3" />
-                <path d="M12 20v3" />
-                <path d="M1 12h3" />
-                <path d="M20 12h3" />
-                <path d="M4.2 4.2l2.1 2.1" />
-                <path d="M17.7 17.7l2.1 2.1" />
-                <path d="M19.8 4.2l-2.1 2.1" />
-                <path d="M6.3 17.7l-2.1 2.1" />
-            </g>
-        </svg>
-    );
+function isImage(mimeOrName) {
+    if (!mimeOrName) return false;
+    const m = String(mimeOrName).toLowerCase();
+    return m.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(m);
 }
+
