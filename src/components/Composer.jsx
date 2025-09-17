@@ -30,69 +30,69 @@ function Composer({
         }));
         setAttachments((a) => [...a, ...temps]);
 
-        // try {
-        //     // 1) ask backend for presigned URLs (batch)
-        //     const presigned = await presignFiles(files); // [{ s3Key, url }]
-        //     if (!Array.isArray(presigned) || presigned.length !== files.length) {
-        //         throw new Error("Presign response mismatch");
-        //     }
+        try {
+            // 1) ask backend for presigned URLs (batch)
+            const presigned = await presignFiles(files); // [{ s3Key, url }]
+            if (!Array.isArray(presigned) || presigned.length !== files.length) {
+                throw new Error("Presign response mismatch");
+            }
 
-        //     // 2) upload all to S3 (PUT)
-        //     const parts = [];
-        //     await Promise.all(
-        //         files.map(async (file, idx) => {
-        //             const tempId = temps[idx].tempId;
-        //             const { s3Key, url } = presigned[idx];
+            // 2) upload all to S3 (PUT)
+            const parts = [];
+            await Promise.all(
+                files.map(async (file, idx) => {
+                    const tempId = temps[idx].tempId;
+                    const { s3Key, url } = presigned[idx];
 
-        //             const etag = await putToS3(url, file, (p) =>
-        //                 setAttachments((a) =>
-        //                     a.map((x) =>
-        //                         x.tempId === tempId ? { ...x, progress: p } : x
-        //                     )
-        //                 )
-        //             );
+                    const etag = await putToS3(url, file, (p) =>
+                        setAttachments((a) =>
+                            a.map((x) =>
+                                x.tempId === tempId ? { ...x, progress: p } : x
+                            )
+                        )
+                    );
 
-        //             parts.push({ s3Key, etag });
+                    parts.push({ s3Key, etag });
 
-        //             // mark as uploaded in UI
-        //             setAttachments((a) =>
-        //                 a.map((x) =>
-        //                     x.tempId === tempId
-        //                         ? {
-        //                             ...x,
-        //                             s3Key,
-        //                             uploading: false,
-        //                             progress: 100,
-        //                             // if your complete API returns a public url later we’ll overwrite it
-        //                             url: x.url, // keep undefined for now
-        //                         }
-        //                         : x
-        //                 )
-        //             );
-        //         })
-        //     );
+                    // mark as uploaded in UI
+                    setAttachments((a) =>
+                        a.map((x) =>
+                            x.tempId === tempId
+                                ? {
+                                    ...x,
+                                    s3Key,
+                                    uploading: false,
+                                    progress: 100,
+                                    // if your complete API returns a public url later we’ll overwrite it
+                                    url: x.url, // keep undefined for now
+                                }
+                                : x
+                        )
+                    );
+                })
+            );
 
-        //     // 3) notify backend to complete uploads (single call)
-        //     const completed = await completeUploads(parts);
-        //     // Optionally returns [{ s3Key, url }] — set public URLs if provided
-        //     if (Array.isArray(completed)) {
-        //         setAttachments((a) =>
-        //             a.map((x) => {
-        //                 const found = completed.find((c) => c.s3Key === x.s3Key);
-        //                 return found ? { ...x, url: found.url || x.url } : x;
-        //             })
-        //         );
-        //     }
-        // } catch (err) {
-        //     // remove any failed temp entries
-        //     const failedIds = temps.map((t) => t.tempId);
-        //     setAttachments((a) => a.filter((x) => !failedIds.includes(x.tempId)));
-        //     console.error("Upload failed:", err);
-        //     // (optional) toast error here
-        // } finally {
-        //     // allow selecting same files again
-        //     e.target.value = "";
-        // }
+            // 3) notify backend to complete uploads (single call)
+            const completed = await completeUploads(parts);
+            // Optionally returns [{ s3Key, url }] — set public URLs if provided
+            if (Array.isArray(completed)) {
+                setAttachments((a) =>
+                    a.map((x) => {
+                        const found = completed.find((c) => c.s3Key === x.s3Key);
+                        return found ? { ...x, url: found.url || x.url } : x;
+                    })
+                );
+            }
+        } catch (err) {
+            // remove any failed temp entries
+            const failedIds = temps.map((t) => t.tempId);
+            setAttachments((a) => a.filter((x) => !failedIds.includes(x.tempId)));
+            console.error("Upload failed:", err);
+            // (optional) toast error here
+        } finally {
+            // allow selecting same files again
+            e.target.value = "";
+        }
     }
 
     function removeAttachment(idOrTempId) {
